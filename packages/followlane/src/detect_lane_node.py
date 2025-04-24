@@ -51,6 +51,7 @@ class DetectLaneNode(DTROS):
             self.counter += 1
 
         # Write your own Code for Lane detection here
+        # This is only a basic example to get some inspiration from
 
         np_arr = np.frombuffer(image_msg.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -69,6 +70,12 @@ class DetectLaneNode(DTROS):
 
         center_white = np.mean(np.where(mask_white != 0))
         center_yellow = np.mean(np.where(mask_yellow != 0))
+
+        if np.isnan(center_white):
+            center_white = 100
+
+        if np.isnan(center_yellow):
+            center_yellow = 900
 
         msg_desired_center = Float64()
         msg_desired_center.data = (center_white + center_yellow) / 2
