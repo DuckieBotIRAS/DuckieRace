@@ -2,7 +2,6 @@
 
 import rospy
 from std_msgs.msg import Float64, Int32, String, UInt8
-from my_msg.msg import Detections
 
 from duckietown_msgs.msg import Twist2DStamped
 import os
@@ -11,20 +10,20 @@ from switch_control_node import ControlType
 import yaml
 import random
 
-class ControObstacleNode(DTROS):
+class ControParkingNode(DTROS):
     def __init__(self,node_name):
-        super(ControObstacleNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
+        super(ControParkingNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
         
         self.enable = False
         self.wait_finished_movement = False
         self.is_running = False
 
         self._vehicle_name = os.environ['VEHICLE_NAME']
-        duckie_topic = f'/{self._vehicle_name}/detect/duckie'
-        obstacle_finished_topic = f'/{self._vehicle_name}/drive/obstacle/finished'
+        parking_topic = f'/{self._vehicle_name}/detect/parking'
+        parking_finished_topic = f'/{self._vehicle_name}/drive/parking/finished'
 
-        self.pub_finished = rospy.Publisher(obstacle_finished_topic, UInt8, queue_size = 1)
-        self.sub_duckie = rospy.Subscriber(duckie_topic, Detections, self.cbDuckieDetection, queue_size = 1)
+        self.pub_finished = rospy.Publisher(parking_finished_topic, UInt8, queue_size = 1)
+        self.sub_parking = rospy.Subscriber(parking_topic, UInt8, self.cbParking, queue_size = 1)
         self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl , queue_size = 1)
 
         
@@ -48,16 +47,18 @@ class ControObstacleNode(DTROS):
         self.wait_finished_movement = False
 
     def cbControl(self,msg):
-        if msg.data == ControlType.Obstacle.value:
+        if msg.data == ControlType.Parking.value:
             self.enable = True
         else:
             self.enable = False
 
-    def cbDuckieDetection(self, msg):
-        print(f'received message. enabled : {self.enable}')
+    def cbParking(self, msg):
+        print(f'ControlParking received message. enabled : {self.enable}')
 
-        if not self.enable or msg.data == 0 or self.is_running:
+        if not self.enable or self.is_running: # or msg.data == 0 or self.is_running:
             return
+        
+        print('parking !!!!')
 
         self.is_running = True 
         
@@ -67,26 +68,26 @@ class ControObstacleNode(DTROS):
         self.pub_turn.publish(Float64(40))
         self.wait()
 
-        self.pub_forward.publish(Float64(0.2))
+        self.pub_forward.publish(Float64(0.3))
         self.wait()
         
         self.pub_turn.publish(Float64(-40))
         self.wait()
-
-        self.pub_forward.publish(Float64(1))
-        self.wait()
         
-        self.pub_turn.publish(Float64(-40))
-        self.wait()
+        rospy.sleep(5)
 
-        self.pub_forward.publish(Float64(0.2))
-        self.wait()    
+
+        self.pub_turn.publish(Float64(-40))
+        self.wait
+
+        self.pub_forward.publish(Float64(0.3))
+        self.wait()
 
         self.pub_turn.publish(Float64(40))
-        self.wait()
+        self.wait()        
 
-        rospy.sleep(1)
         self.pub_finished.publish(UInt8(1))
+        rospy.sleep(1)
         self.is_running = False
 
     def wait(self):
@@ -116,6 +117,6 @@ class ControObstacleNode(DTROS):
 
 if __name__ == '__main__':
     # create the node
-    node = ControObstacleNode(node_name='control_psrking_node')
+    node = ControParkingNode(node_name='control_psrking_node')
     # keep the process from terminating
     rospy.spin()

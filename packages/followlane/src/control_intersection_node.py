@@ -2,29 +2,29 @@
 
 import rospy
 from std_msgs.msg import Float64, Int32, String, UInt8
-from my_msg.msg import Detections
 
 from duckietown_msgs.msg import Twist2DStamped
 import os
 from duckietown.dtros import DTROS, NodeType
 from switch_control_node import ControlType
 import yaml
+from my_msg.msg import Intersection
 import random
 
-class ControObstacleNode(DTROS):
+class ControlIntersetionNode(DTROS):
     def __init__(self,node_name):
-        super(ControObstacleNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
+        super(ControlIntersetionNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
         
         self.enable = False
         self.wait_finished_movement = False
         self.is_running = False
 
         self._vehicle_name = os.environ['VEHICLE_NAME']
-        duckie_topic = f'/{self._vehicle_name}/detect/duckie'
-        obstacle_finished_topic = f'/{self._vehicle_name}/drive/obstacle/finished'
+        intersection_topic = f'/{self._vehicle_name}/detect/Intersection'
+        intersection_finished_topic = f'/{self._vehicle_name}/drive/Intersection/finished'
 
-        self.pub_finished = rospy.Publisher(obstacle_finished_topic, UInt8, queue_size = 1)
-        self.sub_duckie = rospy.Subscriber(duckie_topic, Detections, self.cbDuckieDetection, queue_size = 1)
+        self.pub_finished = rospy.Publisher(intersection_finished_topic, UInt8, queue_size = 1)
+        self.sub_intersection = rospy.Subscriber(intersection_topic, Intersection, self.cbIntersection, queue_size = 1)
         self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl , queue_size = 1)
 
         
@@ -48,53 +48,81 @@ class ControObstacleNode(DTROS):
         self.wait_finished_movement = False
 
     def cbControl(self,msg):
-        if msg.data == ControlType.Obstacle.value:
+        if msg.data == ControlType.Intersection.value:
             self.enable = True
         else:
             self.enable = False
 
-    def cbDuckieDetection(self, msg):
+    def cbIntersection(self, msg):
         print(f'received message. enabled : {self.enable}')
 
-        if not self.enable or msg.data == 0 or self.is_running:
+        if not self.enable:
+            return       
+
+        if self.is_running:
             return
 
         self.is_running = True 
         
         self.stop()
-        rospy.sleep(1)
+        rospy.sleep(2)
+        possible_turns = []
 
-        self.pub_turn.publish(Float64(40))
-        self.wait()
+        if msg.right:
+            possible_turns.append('right')
 
-        self.pub_forward.publish(Float64(0.2))
-        self.wait()
+        if msg.left:
+            possible_turns.append('left')
         
-        self.pub_turn.publish(Float64(-40))
-        self.wait()
+        if msg.straight:
+            possible_turns.append('straight')
 
-        self.pub_forward.publish(Float64(1))
-        self.wait()
+        self.turn(possible_turns)
+
+    def turn(self,possible_turns):
+        if len(possible_turns) < 1:
+            self.is_running = False
+            return
         
-        self.pub_turn.publish(Float64(-40))
-        self.wait()
-
-        self.pub_forward.publish(Float64(0.2))
-        self.wait()    
-
-        self.pub_turn.publish(Float64(40))
-        self.wait()
-
-        rospy.sleep(1)
-        self.pub_finished.publish(UInt8(1))
-        self.is_running = False
-
-    def wait(self):
         rate = rospy.Rate(1)
-    
+        turn_direction = random.choice(possible_turns)
+
+        if turn_direction == 'right':
+            turn = -80
+            forward = 0.4
+
+        if turn_direction == 'left':
+            turn = 80
+            forward = 0.8
+
+        if turn_direction == 'straight':
+            turn = 0
+            forward = 1
+
+
+        self.pub_forward.publish(Float64(forward))
+
         self.wait_finished_movement = True
         while self.wait_finished_movement:
-            rate.sleep()      
+            rate.sleep()
+
+        self.pub_turn.publish(Float64(turn))
+        
+        self.wait_finished_movement = True
+        while self.wait_finished_movement:
+            rate.sleep()
+        
+        if turn_direction == 'left':
+            self.pub_forward.publish(Float64(0.6))
+
+            self.wait_finished_movement = True
+            while self.wait_finished_movement:
+                rate.sleep()
+
+        self.pub_finished.publish(UInt8(1))
+        rospy.sleep(1)
+        self.is_running = False
+                
 
     def stop(self):
         rospy.loginfo("stoping ducki. cmd_vel will be 0")
@@ -116,6 +144,6 @@ class ControObstacleNode(DTROS):
 
 if __name__ == '__main__':
     # create the node
-    node = ControObstacleNode(node_name='control_psrking_node')
+    node = ControlIntersetionNode(node_name='control_intersection_node')
     # keep the process from terminating
     rospy.spin()

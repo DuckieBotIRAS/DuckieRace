@@ -13,8 +13,12 @@ dt-launchfile-init
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
 # launching app
-dt-exec echo "This is an empty launch script. Update it to launch your application."
-
+#dt-exec echo "This is an empty launch script. Update it to launch your application."
+rosrun followlane detec_lane_node.py & 
+rosrun followlane detect_duckie_node.py & 
+rosrun followlane switch_control_node.py & 
+rosrun followlane control_lane_node.py & 
+rosrun followlane control_point_node.py
 
 # ----------------------------------------------------------------------------
 # YOUR CODE ABOVE THIS LINE

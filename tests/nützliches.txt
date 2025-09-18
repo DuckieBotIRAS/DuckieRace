@@ -1,0 +1,53 @@
+# Make Node executable
+chmod +x ./packages/my_package/src/my_publisher_node.py
+
+# Local build
+dts devel build -f
+
+# Remote build
+dts devel build -H ROBOT_NAME -f
+
+# Local execute Remote Rosmaster, twist-control Node
+dts devel run -R ROBOT_NAME -L twist-control
+
+# Remote execute
+dts devel run -H ROBOT_NAME -L my-publisher
+
+
+#Commands in order for tick:
+cd DuckieRace
+dts devel build -H tick -f
+dts devel build -f
+
+# -X for allowing to open new window -n to give it a name
+dts devel run -R tick -L detect-lane -X -n detect
+
+dts devel run -R tick -L control-lane -n control
+
+https://universe.roboflow.com/cvduckies-ahtmc/duckietown_dataset
+https://universe.roboflow.com/duckietown-rvbyd/duckiebot/browse?queryText=&pageSize=50&startingIndex=50&browseQuery=true
+
+https://universe.roboflow.com/hanoi-urban-lab-iehvd/duckietown-hqbfo/browse?queryText=&pageSize=50&startingIndex=0&browseQuery=true
+
+
+TODOS:
+    - Detect Dashed Line & parking (Vorbereiten, so dass nur noch algorithmus eingefügt werden muss)
+    - Duckie Detection & object avoidance
+    - Duckiebot Detection (Berücksichtigen bei Überholen, Abbiegen und Parken)
+    ✓- Gebiete Festlegen für Duckiebot Wartet an Kreuzung / ist auf Kreuzung / in Parkplatzt
+    - Duckiebot_DB21J : https://universe.roboflow.com/duckiebot-db21j/duckiebtown_db21j
+
+    - Code Dukumentieren und Pushen / insbesondere neuen Code zum drehen sollte die Woche über zu verfügung gestellt werden  
+    - Parallele Systeme Fertig machen
+
+    ✓- switch control
+
+    ✓- control lane
+    ✓- control Intersection
+    (✓)- control parking
+    (✓)- control obstacle
+
+    ✓- detect lane
+    ✓- detect Intersection
+    (✓)- detect parking
+    - detect duckie

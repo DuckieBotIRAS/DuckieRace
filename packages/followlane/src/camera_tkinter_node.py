@@ -9,6 +9,9 @@ import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import tkinter as tk
+from std_msgs.msg import String
+from threading import Thread
+
 
 from PIL import Image, ImageTk
 
@@ -19,6 +22,7 @@ class CameraReaderNode(DTROS):
         # static parameters
         self._vehicle_name = os.environ['VEHICLE_NAME']
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
+        self._conf_topic = f"/{self._vehicle_name}/conf"
         # bridge between OpenCV and ROS
         self._bridge = CvBridge()
 
@@ -29,16 +33,18 @@ class CameraReaderNode(DTROS):
         self.create_window()
 
         self.sub = rospy.Subscriber(self._camera_topic, CompressedImage, self.callback)
-
-        self.i =  0
+        self.pub_conf = rospy.Publisher(self._conf_topic, String, queue_size=1)
+        self.is_running = False
 
     def callback(self,msg):
 
-        i += 1
-        if self.i % 3 != 0:
-            return;
+        if self.is_running:
+            return
+        self.is_running = True
 
+        print(f'call back called')
         self.update_conf()
+        print(f'config updated')
 
         #print('started Method')
         # convert JPEG bytes to CV image
@@ -47,6 +53,7 @@ class CameraReaderNode(DTROS):
         # display frame
         image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         #print(f'loaded image {image.shape}')
+        print(f'read image {image.size}')
         if self.selected.get() == 'lane_image':
 
             x_alt = 0
@@ -61,6 +68,13 @@ class CameraReaderNode(DTROS):
                 x_alt = x
                 y_alt = y
 
+        elif self.selected.get() == 'pid_regler'  or self.selected.get() == 'turn_control':
+            pass
+        elif self.selected.get() == 'turn_detect':
+            image = cv2.circle(image,(self.conf['turn_detect']['left_x'], self.conf['turn_detect']['left_y']),20,(255,0,0))
+            image = cv2.circle(image,(self.conf['turn_detect']['right_x'], self.conf['turn_detect']['right_y']),20,(255,0,0))
+            image = cv2.circle(image,(self.conf['turn_detect']['front_x'], self.conf['turn_detect']['front_y']),20,(255,0,0))
+
         else:
             hl = self.conf[self.selected.get()]['hl']
             hh = self.conf[self.selected.get()]['hh'] 
@@ -73,15 +87,30 @@ class CameraReaderNode(DTROS):
                             (hl,sl,vl), 
                             (hh,sh,vh),)
 
+        print('showing image')
         #update image in window
         image = ImageTk.PhotoImage(Image.fromarray(image))
         self.panel.configure(image=image)
         self.panel.image = image
 
+        self.is_running = False
+
     def update_conf(self):
+        selected = self.selected.get()
         for val in self.conf[self.selected.get()]:
-            name = f'{self.selected.get()}_{val}'
-            self.conf[self.selected.get()][val] = self.sliders[name].get()
+            name = f'{selected}_{val}'
+            try:
+                self.conf[selected][val] = self.sliders[name].get()
+            except:
+                print('bad conding should not happen')  
+
+    def publish_config(self):
+        print('running')
+        rate = rospy.Rate(1)
+        while not rospy.is_shutdown() :    
+            self.pub_conf.publish(f'{self.conf}')
+            print(f'published conf {self.conf["white"]}')
+            rate.sleep()
 
     
     def print_conf(self):
@@ -122,8 +151,10 @@ class CameraReaderNode(DTROS):
             for val in self.conf[option]:
                 name = f'{option}_{val}'
 
-                if option == 'lane_image':
+                if option == 'lane_image' or option == 'turn_detect':
                     self.sliders[name] = tk.Scale(frame, from_=-100, to=700,orient='horizontal',label=val)
+                elif option == 'pid_regler' or option == 'turn_control':
+                    self.sliders[name] = tk.Scale(frame, from_=0, to=100,orient='horizontal',label=val)
                 else:
                     self.sliders[name] = tk.Scale(frame, from_=0, to=255,orient='horizontal',label=val)
                 self.sliders[name].set(self.conf[option][val])
@@ -135,8 +166,8 @@ class CameraReaderNode(DTROS):
         self.slider_frame.pack()
 
     def run(self):
+        Thread(target = self.publish_config).start()
         self._root.mainloop()
-        self.print_conf()
         rospy.signal_shutdown('User endet Programm')
 
 

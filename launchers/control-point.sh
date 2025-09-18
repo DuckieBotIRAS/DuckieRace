@@ -6,7 +6,7 @@ source /environment.sh
 dt-launchfile-init
 
 # launch subscriber
-rosrun followlane camera_tkinter_node.py
+rosrun odometry control_point_node.py
 
 # wait for app to end
 dt-launchfile-join

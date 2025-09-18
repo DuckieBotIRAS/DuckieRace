@@ -5,28 +5,74 @@ duck:
   sl: 220
   vh: 255
   vl: 200
+duckie_areas:
+  intersection_front_size: 42
+  intersection_front_x: 225
+  intersection_front_y: 266
+  intersection_left_size: 36
+  intersection_left_x: 63
+  intersection_left_y: 375
+  intersection_right_size: 42
+  intersection_right_x: 497
+  intersection_right_y: 314
+  overtaking_1_size: 83
+  overtaking_1_x: 131
+  overtaking_1_y: 300
+  overtaking_2_size: 83
+  overtaking_2_x: 131
+  overtaking_2_y: 300
+  overtaking_3_size: 83
+  overtaking_3_x: 131
+  overtaking_3_y: 300
+  parkingt_size: 49
+  parkingt_x: 510
+  parkingt_y: 334
 lane_image:
-  bottom_left_x: 720
-  bottom_left_y: 444
-  bottom_right_x: 0
-  bottom_right_y: 440
-  top_left_x: 262
-  top_left_y: 160
-  top_right_x: 419
-  top_right_y: 160
+  bottom_left_x: 700
+  bottom_left_y: 429
+  bottom_right_x: 6
+  bottom_right_y: 418
+  top_left_x: 229
+  top_left_y: 171
+  top_right_x: 429
+  top_right_y: 171
+pid_regler:
+  d: 31
+  i: 50
+  max_vel: 29
+  p: 34
+red:
+  hh: 15
+  hl: 0
+  sh: 255
+  sl: 113
+  vh: 255
+  vl: 120
+turn_control:
+  front_tunr_y: 50
+  front_turn_x: 0
+  left_turn_x: -50
+  left_turn_y: 40
+  right_turn_x: 20
+  right_turn_y: 20
+turn_detect:
+  front_x: 218
+  front_y: 206
+  left_x: 29
+  left_y: 276
+  right_x: 441
+  right_y: 253
 white:
   hh: 255
   hl: 0
-  sh: 80
+  sh: 49
   sl: 0
   vh: 255
-  vl: 180
+  vl: 221
 yellow:
-  hh: 80
-  hl: 20
+  hh: 60
+  hl: 15
   sh: 255
-  sl: 80
+  sl: 49
   vh: 255
-  vl: 100
-
-
+  vl: 131

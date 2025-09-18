@@ -9,6 +9,9 @@ from sensor_msgs.msg import CompressedImage, Image
 from ultralytics import YOLO
 from std_msgs.msg import Float64
 from cv_bridge import CvBridge
+import time
+import threading
+
 
 
 class DetectDuckieNode(DTROS):
@@ -28,24 +31,51 @@ class DetectDuckieNode(DTROS):
 
         self.counter = 0
         self.bridge = CvBridge()
+        self.is_running = False
+        self.image = None
 
 
     def cbDetectObjects(self,image_msg):
-        if self.counter % 3 != 0:
-            self.counter += 1
+        #if self.counter % 3 != 0:
+        #    self.counter += 1
+        #    return
+        #else:
+        #    self.counter += 1
+        
+        print(f'is running : {self.is_running}')
+        if self.is_running:
             return
-        else:
-            self.counter += 1
+        
+        threading.Thread(target = self.predict_duckies,args=[image_msg]).start()
+        #self.predict_duckies(np_arr)
+        
+    def predict_duckies(self,image_msg):
 
+        self.is_running = True
+        print('started')
+        t = time.time()
+
+        
         np_arr = np.frombuffer(image_msg.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
         results = self._model(cv_image) #, classes=)
-        image = draw_bounding_boxes(results,cv_image)
+        self.image = draw_bounding_boxes(results,cv_image)
 
-        msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
-        self.pup_image.publish(msg)
 
+        print('done')
+        self.is_running = False
+
+        print(time.time() - t)
+        
+    def run(self):
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            print(f'showing image {self.image is None}')
+            if not self.image is None:
+                cv2.imshow('duckie detection',self.image)
+                cv2.waitKey(1)
+            rate.sleep()
 
         
 
@@ -63,4 +93,5 @@ def draw_bounding_boxes(results,img):
 if __name__ == '__main__':
 
     node = DetectDuckieNode(node_name='detect_duckie_node')
+    node.run()
     rospy.spin()

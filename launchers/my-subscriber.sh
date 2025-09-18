@@ -5,8 +5,8 @@ source /environment.sh
 # initialize launch file
 dt-launchfile-init
 
-# launch subscriber
-rosrun followlane camera_tkinter_node.py
+# launch publisher
+rosrun followlane my_subscriber_node.py
 
 # wait for app to end
 dt-launchfile-join
