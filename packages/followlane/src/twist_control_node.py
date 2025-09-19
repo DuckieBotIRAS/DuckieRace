@@ -1,46 +1,84 @@
-#!/usr/bin/env python3
-
-import os
-import rospy
-from duckietown.dtros import DTROS, NodeType
-from duckietown_msgs.msg import Twist2DStamped
-
-
-# Twist command for controlling the linear and angular velocity of the frame
-VELOCITY = 0.3  # linear vel    , in m/s    , forward (+)
-OMEGA = 4.0     # angular vel   , rad/s     , counter clock wise (+)
-
-
-class TwistControlNode(DTROS):
-
-    def __init__(self, node_name):
-        # initialize the DTROS parent class
-        super(TwistControlNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
-        # static parameters
-        vehicle_name = os.environ['VEHICLE_NAME']
-        twist_topic = f"/{vehicle_name}/car_cmd_switch_node/cmd"
-        # form the message
-        self._v = VELOCITY
-        self._omega = OMEGA
-        # construct publisher
-        self._publisher = rospy.Publisher(twist_topic, Twist2DStamped, queue_size=1)
-
-    def run(self):
-        # publish 10 messages every second (10 Hz)
-        rate = rospy.Rate(10)
-        message = Twist2DStamped(v=self._v, omega=self._omega)
-        while not rospy.is_shutdown():
-            self._publisher.publish(message)
-            rate.sleep()
-
-    def on_shutdown(self):
-        stop = Twist2DStamped(v=0.0, omega=0.0)
-        self._publisher.publish(stop)
-
-if __name__ == '__main__':
-    # create the node
-    node = TwistControlNode(node_name='twist_control_node')
-    # run node
-    node.run()
-    # keep the process from terminating
-    rospy.spin()
+# parameters
+ARG REPO_NAME="DuckieRace"
+ARG DESCRIPTION=""
+ARG MAINTAINER="duckie.town@web.de"
+# pick an icon from: https://fontawesome.com/v4.7.0/icons/
+ARG ICON="cube"
+# ==================================================>
+# ==> Do not change the code below this line
+ARG ARCH
+ARG DISTRO=daffy
+ARG DOCKER_REGISTRY=docker.io
+ARG BASE_IMAGE=dt-ros-commons
+ARG BASE_TAG=${DISTRO}-${ARCH}
+ARG LAUNCHER=default
+# define base image
+FROM ${DOCKER_REGISTRY}/duckietown/${BASE_IMAGE}:${BASE_TAG} as base
+# recall all arguments
+ARG DISTRO
+ARG REPO_NAME
+ARG DESCRIPTION
+ARG MAINTAINER
+ARG ICON
+ARG BASE_TAG
+ARG BASE_IMAGE
+ARG LAUNCHER
+# - buildkit
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+# check build arguments
+RUN dt-build-env-check "${REPO_NAME}" "${MAINTAINER}" "${DESCRIPTION}"
+# define/create repository path
+ARG REPO_PATH="${CATKIN_WS_DIR}/src/${REPO_NAME}"
+ARG LAUNCH_PATH="${LAUNCH_DIR}/${REPO_NAME}"
+RUN mkdir -p "${REPO_PATH}" "${LAUNCH_PATH}"
+WORKDIR "${REPO_PATH}"
+# keep some arguments as environment variables
+ENV DT_MODULE_TYPE="${REPO_NAME}" \
+ DT_MODULE_DESCRIPTION="${DESCRIPTION}" \
+ DT_MODULE_ICON="${ICON}" \
+ DT_MAINTAINER="${MAINTAINER}" \
+ DT_REPO_PATH="${REPO_PATH}" \
+ DT_LAUNCH_PATH="${LAUNCH_PATH}" \
+ DT_LAUNCHER="${LAUNCHER}"
+# Fix ROS GPG key - completely bypass the issue
+RUN echo "deb [trusted=yes] http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list
+RUN apt-get update && apt-get install -y curl gnupg
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list
+RUN apt-get update
+# install apt dependencies
+COPY ./dependencies-apt.txt "${REPO_PATH}/"
+RUN dt-apt-install ${REPO_PATH}/dependencies-apt.txt
+# install python3 dependencies
+ARG PIP_INDEX_URL="https://pypi.org/simple"
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+COPY ./dependencies-py3.* "${REPO_PATH}/"
+RUN dt-pip3-install "${REPO_PATH}/dependencies-py3.*"
+# copy the source code
+COPY ./packages "${REPO_PATH}/packages"
+# build packages
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+ catkin build \
+ --workspace ${CATKIN_WS_DIR}/
+# install launcher scripts
+COPY ./launchers/. "${LAUNCH_PATH}/"
+RUN dt-install-launchers "${LAUNCH_PATH}"
+# define default command
+CMD ["bash", "-c", "dt-launcher-${DT_LAUNCHER}"]
+# store module metadata
+LABEL org.duckietown.label.module.type="${REPO_NAME}" \
+ org.duckietown.label.module.description="${DESCRIPTION}" \
+ org.duckietown.label.module.icon="${ICON}" \
+ org.duckietown.label.platform.os="${TARGETOS}" \
+ org.duckietown.label.platform.architecture="${TARGETARCH}" \
+ org.duckietown.label.platform.variant="${TARGETVARIANT}" \
+ org.duckietown.label.code.location="${REPO_PATH}" \
+ org.duckietown.label.code.version.distro="${DISTRO}" \
+ org.duckietown.label.base.image="${BASE_IMAGE}" \
+ org.duckietown.label.base.tag="${BASE_TAG}" \
+ org.duckietown.label.maintainer="${MAINTAINER}"
+# <== Do not change the code above this line
+# <==================================================
